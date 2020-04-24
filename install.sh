@@ -3,7 +3,7 @@
 # curl -sL https://tinyurl.com/archi-rnkvms | sh
 
 archi_dialog() {
-    echo $(dialog --no-shadow --backtitle "Arch Linux Installer (RamNode SKVMS)" "$@" 3>&1 1>&2 2>&3)
+    dialog --no-shadow --backtitle "Arch Linux Installer (RamNode SKVMS)" "$@" 3>&1 1>&2 2>&3
 }
 
 # disk
@@ -14,7 +14,7 @@ root=${disk}$(archi_dialog --title "Root Partition" --no-cancel --inputbox "Plea
 
 # IP
 ip=$(archi_dialog --title "IP Address" --no-cancel --inputbox "Please enter IPv4 address assigned to this host:" 8 60 "127.0.1.1")
-ip_dev=$(ls -1 /sys/class/net | grep -v lo)
+ip_dev=$(ip -o link show up | awk -F': ' '{print $2}' | grep -v lo)
 
 # hostname
 hostname=$(archi_dialog --title "Hostname" --no-cancel --inputbox "Please enter a name for this host:" 8 60 "rnkvm")
@@ -49,8 +49,8 @@ reset
 timedatectl set-ntp true
 
 # setup root partition
-mkfs.ext4 ${root}
-mount ${root} /mnt
+mkfs.ext4 "${root}"
+mount "${root}" /mnt
 
 {
 # update keyring and pacman
@@ -86,7 +86,7 @@ cat << EOF > /etc/dhcpcd.conf
 # define static profile
 profile static_${ip_dev}
 static ip_address=${ip}/24
-static routers=$(echo ${ip} | sed 's/\.[0-9]*$/.1/')
+static routers=$(echo "${ip}" | sed 's/\.[0-9]*$/.1/')
 
 # fallback to static profile on ${ip_dev}
 interface ${ip_dev}
