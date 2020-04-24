@@ -15,7 +15,7 @@ while getopts ":a:r:b:p:h" o; do case "${o}" in
 esac done
 
 [ -z "$dotfilesrepo" ] && dotfilesrepo="https://github.com/jlaw/dotsativa.git"
-[ -z "$progsfile" ] && progsfile="https://raw.githubusercontent.com/jlaw/archi/master/progs.csv"
+[ -z "$progsfile" ] && progsfile="https://raw.githubusercontent.com/jlaw/archi/rnkvm/progs.csv"
 [ -z "$aurhelper" ] && aurhelper="yay"
 [ -z "$repobranch" ] && repobranch="master"
 
@@ -78,9 +78,10 @@ manualinstall() { # Installs $1 manually if not installed. Used only for AUR hel
 	dialog --infobox "Installing \"$1\", an AUR helper..." 4 50
 	cd /tmp || exit 1
 	rm -rf /tmp/"$1"*
-	curl -sO https://aur.archlinux.org/cgit/aur.git/snapshot/"$1".tar.gz &&
-	sudo -u "$name" tar -xvf "$1".tar.gz 2>&1 &&
-	cd "$1" &&
+	pkg_name="$1"-bin
+	curl -sO https://aur.archlinux.org/cgit/aur.git/snapshot/"$pkg_name".tar.gz &&
+	sudo -u "$name" tar -xvf "$pkg_name".tar.gz 2>&1 &&
+	cd "$pkg_name" &&
 	sudo -u "$name" makepkg --noconfirm -si 2>&1
 	cd /tmp || return 1) ;}
 
@@ -125,10 +126,6 @@ installationloop() { \
 			*) maininstall "$program" "$comment" ;;
 		esac
 	done < /tmp/progs.csv ;}
-
-systembeepoff() { dialog --infobox "Getting rid of that retarded error beep sound..." 10 50
-	rmmod pcspkr
-	echo "blacklist pcspkr" > /etc/modprobe.d/nobeep.conf ;}
 
 finalize(){ \
 	dialog --infobox "Preparing welcome message..." 4 50
@@ -190,9 +187,6 @@ manualinstall $aurhelper || error "Failed to install AUR helper."
 # and all build dependencies are installed.
 installationloop
 
-dialog --title "LARBS Installation" --infobox "Finally, installing \`libxft-bgra\` to enable color emoji in suckless software without crashes." 5 70
-yes | sudo -u "$name" $aurhelper -S libxft-bgra-git 2>&1
-
 # Install the dotfiles in the user's home directory
 sudo -H -u "$name" yadm clone "$dotfilesrepo" 2>&1
 rm -f "/home/$name/README.md" "/home/$name/LICENSE" "/home/$name/FUNDING.yml"
@@ -204,35 +198,9 @@ https://www.archlinux.org/feeds/news/" > "/home/$name/.config/newsboat/urls"
 # make git ignore deleted LICENSE & README.md files
 git update-index --assume-unchanged "/home/$name/README.md" "/home/$name/LICENSE" "/home/$name/FUNDING.yml"
 
-# Most important command! Get rid of the beep!
-systembeepoff
-
 # Make zsh the default shell for the user.
 chsh -s /bin/zsh "$name" >/dev/null 2>&1
-sudo -u "$name" mkdir -p "/home/$name/.cache/zsh/"
-
-# dbus UUID must be generated for Artix runit.
-dbus-uuidgen > /var/lib/dbus/machine-id
-
-# Use system notifications for Brave on Artix
-echo "export \$(dbus-launch)" > /etc/profile.d/dbus.sh
-
-# Tap to click
-[ ! -f /etc/X11/xorg.conf.d/40-libinput.conf ] && printf 'Section "InputClass"
-        Identifier "libinput touchpad catchall"
-        MatchIsTouchpad "on"
-        MatchDevicePath "/dev/input/event*"
-        Driver "libinput"
-	# Enable left mouse button by tapping
-	Option "Tapping" "on"
-EndSection' > /etc/X11/xorg.conf.d/40-libinput.conf
-
-# Fix fluidsynth/pulseaudio issue.
-grep -q "OTHER_OPTS='-a pulseaudio -m alsa_seq -r 48000'" /etc/conf.d/fluidsynth ||
-	echo "OTHER_OPTS='-a pulseaudio -m alsa_seq -r 48000'" >> /etc/conf.d/fluidsynth
-
-# Start/restart PulseAudio.
-killall pulseaudio; sudo -u "$name" pulseaudio --start
+sudo -u "$name" mkdir -p "/home/$name/.local/share/zsh"
 
 # This line, overwriting the `newperms` command above will allow the user to run
 # serveral important commands, `shutdown`, `reboot`, updating, etc. without a password.
