@@ -21,7 +21,7 @@ esac done
 
 ### FUNCTIONS ###
 
-installpkg(){ pacman --noconfirm --needed -S "$1" >/dev/null 2>&1 ;}
+installpkg(){ pacman --noconfirm --needed -S "$1" 2>&1 ;}
 
 error() { clear; printf "ERROR:\\n%s\\n" "$1" >&2; exit 1;}
 
@@ -46,7 +46,7 @@ getuserandpass() { \
 	done ;}
 
 usercheck() { \
-	! { id -u "$name" >/dev/null 2>&1; } ||
+	! { id -u "$name" 2>&1; } ||
 	dialog --colors --title "WARNING!" --yes-label "CONTINUE" --no-label "No wait..." --yesno "The user \`$name\` already exists on this system. LARBS can install for a user already existing, but it will \\Zboverwrite\\Zn any conflicting settings/dotfiles on the user account.\\n\\nLARBS will \\Zbnot\\Zn overwrite your user files, documents, videos, etc., so don't worry about that, but only click <CONTINUE> if you don't mind your settings being overwritten.\\n\\nNote also that LARBS will change $name's password to the one you just gave." 14 70
 	}
 
@@ -57,7 +57,7 @@ preinstallmsg() { \
 adduserandpass() { \
 	# Adds user `$name` with password $pass1.
 	dialog --infobox "Adding user \"$name\"..." 4 50
-	useradd -m -g wheel -s /bin/zsh "$name" >/dev/null 2>&1 ||
+	useradd -m -g wheel -s /bin/zsh "$name" 2>&1 ||
 	usermod -a -G wheel "$name" && mkdir -p /home/"$name" && chown "$name":wheel /home/"$name"
 	repodir="/home/$name/.local/src"; mkdir -p "$repodir"; chown -R "$name":wheel "$(dirname "$repodir")"
 	echo "$name:$pass1" | chpasswd
@@ -65,8 +65,8 @@ adduserandpass() { \
 
 refreshkeys() { \
 	dialog --infobox "Refreshing Arch Keyring..." 4 40
-	pacman -Q artix-keyring >/dev/null 2>&1 && pacman --noconfirm -S artix-keyring >/dev/null 2>&1
-	pacman --noconfirm -S archlinux-keyring >/dev/null 2>&1
+	pacman -Q artix-keyring 2>&1 && pacman --noconfirm -S artix-keyring >/dev/null 2>&1
+	pacman --noconfirm -S archlinux-keyring 2>&1
 	}
 
 newperms() { # Set special sudoers settings for install (or after).
@@ -79,9 +79,9 @@ manualinstall() { # Installs $1 manually if not installed. Used only for AUR hel
 	cd /tmp || exit 1
 	rm -rf /tmp/"$1"*
 	curl -sO https://aur.archlinux.org/cgit/aur.git/snapshot/"$1".tar.gz &&
-	sudo -u "$name" tar -xvf "$1".tar.gz >/dev/null 2>&1 &&
+	sudo -u "$name" tar -xvf "$1".tar.gz 2>&1 &&
 	cd "$1" &&
-	sudo -u "$name" makepkg --noconfirm -si >/dev/null 2>&1
+	sudo -u "$name" makepkg --noconfirm -si 2>&1
 	cd /tmp || return 1) ;}
 
 maininstall() { # Installs all needed programs from main repo.
@@ -93,21 +93,21 @@ gitmakeinstall() {
 	progname="$(basename "$1" .git)"
 	dir="$repodir/$progname"
 	dialog --title "LARBS Installation" --infobox "Installing \`$progname\` ($n of $total) via \`git\` and \`make\`. $(basename "$1") $2" 5 70
-	sudo -u "$name" git clone --depth 1 "$1" "$dir" >/dev/null 2>&1 || { cd "$dir" || return 1 ; sudo -u "$name" git pull --force origin master;}
+	sudo -u "$name" git clone --depth 1 "$1" "$dir" 2>&1 || { cd "$dir" || return 1 ; sudo -u "$name" git pull --force origin master;}
 	cd "$dir" || exit 1
-	make >/dev/null 2>&1
-	make install >/dev/null 2>&1
+	make 2>&1
+	make install 2>&1
 	cd /tmp || return 1 ;}
 
 aurinstall() { \
 	dialog --title "LARBS Installation" --infobox "Installing \`$1\` ($n of $total) from the AUR. $1 $2" 5 70
-	echo "$aurinstalled" | grep -q "^$1$" && return 1
-	sudo -u "$name" $aurhelper -S --noconfirm "$1" >/dev/null 2>&1
+	echo "$aurinstalled" | grep "^$1$" && return 1
+	sudo -u "$name" $aurhelper -S --noconfirm "$1" 2>&1
 	}
 
 pipinstall() { \
 	dialog --title "LARBS Installation" --infobox "Installing the Python package \`$1\` ($n of $total). $1 $2" 5 70
-	[ -x "$(command -v "pip")" ] || installpkg python-pip >/dev/null 2>&1
+	[ -x "$(command -v "pip")" ] || installpkg python-pip 2>&1
 	yes | pip install "$1"
 	}
 
@@ -117,7 +117,7 @@ installationloop() { \
 	aurinstalled=$(pacman -Qqm)
 	while IFS=, read -r tag program comment; do
 		n=$((n+1))
-		echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
+		echo "$comment" | grep "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
 		case "$tag" in
 			"A") aurinstall "$program" "$comment" ;;
 			"G") gitmakeinstall "$program" "$comment" ;;
@@ -165,7 +165,7 @@ for x in curl base-devel git ntp zsh; do
 done
 
 dialog --title "LARBS Installation" --infobox "Synchronizing system time to ensure successful and secure installation of software..." 4 70
-ntpdate 0.us.pool.ntp.org >/dev/null 2>&1
+ntpdate 0.us.pool.ntp.org 2>&1
 
 adduserandpass || error "Error adding username and/or password."
 
@@ -191,10 +191,10 @@ manualinstall $aurhelper || error "Failed to install AUR helper."
 installationloop
 
 dialog --title "LARBS Installation" --infobox "Finally, installing \`libxft-bgra\` to enable color emoji in suckless software without crashes." 5 70
-yes | sudo -u "$name" $aurhelper -S libxft-bgra-git >/dev/null 2>&1
+yes | sudo -u "$name" $aurhelper -S libxft-bgra-git 2>&1
 
 # Install the dotfiles in the user's home directory
-sudo -H -u "$name" yadm clone "$dotfilesrepo" >/dev/null 2>&1
+sudo -H -u "$name" yadm clone "$dotfilesrepo" 2>&1
 rm -f "/home/$name/README.md" "/home/$name/LICENSE" "/home/$name/FUNDING.yml"
 # Create default urls file if none exists.
 [ ! -f "/home/$name/.config/newsboat/urls" ] && echo "http://lukesmith.xyz/rss.xml
